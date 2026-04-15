@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>엔딩 ROAS 계산기</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; background: #f5f5f5; color: #1a1a1a; padding: 20px; min-height: 100vh; }
+  .container { max-width: 600px; margin: 0 auto; }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 12px; color: #888; margin-bottom: 20px; }
+  .card { background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 20px; margin-bottom: 12px; }
+  .card-title { font-size: 11px; font-weight: 500; color: #888; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .input-wrap { position: relative; }
+  .input-wrap input { width: 100%; height: 40px; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0 36px 0 12px; font-size: 14px; color: #1a1a1a; background: #fafafa; outline: none; transition: border-color 0.15s; }
+  .input-wrap input:focus { border-color: #4a90e2; background: #fff; }
+  .input-wrap.no-unit input { padding: 0 12px; }
+  .input-unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #aaa; pointer-events: none; }
+  .toggle-row { display: flex; gap: 6px; }
+  .toggle-btn { font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #666; cursor: pointer; transition: all 0.15s; }
+  .toggle-btn.active { background: #e8f0fe; color: #1a73e8; border-color: transparent; }
+  .divider { height: 1px; background: #f0f0f0; margin: 16px 0; }
+  .download-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .download-btn { font-size: 12px; padding: 8px 16px; border-radius: 8px; border: 1px solid #4a90e2; background: #fff; color: #4a90e2; cursor: pointer; transition: all 0.15s; }
+  .download-btn:hover { background: #4a90e2; color: #fff; }
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+  .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+  .g5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+  .metric { background: #f2f2f2; border-radius: 8px; padding: 12px; border: 1px solid #e0e0e0; }
+  .metric-label { font-size: 10px; color: #999; margin-bottom: 4px; line-height: 1.3; }
+  .metric-value { font-size: 18px; font-weight: 500; color: #1a1a1a; }
+  .metric-value.big { font-size: 24px; }
+  .metric-value.danger { color: #d32f2f; }
+  .metric-value.success { color: #2e7d32; }
+  .metric-value.warning { color: #e65100; }
+  .metric-sub { font-size: 10px; color: #bbb; margin-top: 3px; line-height: 1.3; }
+  .section-label { font-size: 11px; letter-spacing: 0.1em; color: #aaa; text-transform: uppercase; margin: 18px 0 10px; }
+  .sim-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .sim-label { font-size: 12px; color: #666; width: 72px; flex-shrink: 0; }
+  .sim-track { flex: 1; }
+  .sim-track input[type=range] { width: 100%; height: 4px; accent-color: #4a90e2; cursor: pointer; }
+  .sim-val { font-size: 13px; font-weight: 500; width: 64px; text-align: right; flex-shrink: 0; color: #1a1a1a; }
+  .verdict { border-radius: 10px; padding: 14px 16px; margin-top: 10px; }
+  .verdict.danger { background: #fdecea; border: 1px solid #f5c6c6; }
+  .verdict.success { background: #e8f5e9; border: 1px solid #c8e6c9; }
+  .verdict.warning { background: #fff8e1; border: 1px solid #ffe082; }
+  .verdict-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .verdict.danger .verdict-title { color: #c62828; }
+  .verdict.success .verdict-title { color: #1b5e20; }
+  .verdict.warning .verdict-title { color: #e65100; }
+  .verdict-body { font-size: 12px; color: #555; line-height: 1.6; }
+  .profit-bar-wrap { height: 8px; background: #e8e8e8; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .profit-bar { height: 8px; border-radius: 4px; transition: width 0.4s, background 0.4s; }
+  .product-header { background: #f7f7f7; border-radius: 8px; padding: 12px; margin-bottom: 16px; border-left: 3px solid #4a90e2; }
+  .product-name { font-size: 16px; font-weight: 500; color: #1a1a1a; margin-bottom: 2px; }
+  .calc-time { font-size: 11px; color: #888; }
+  @media (max-width: 480px) {
+    .g4 { grid-template-columns: 1fr 1fr; }
+    .g3 { grid-template-columns: 1fr 1fr; }
+    body { padding: 12px; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <h1>엔딩 ROAS 계산기</h1>
+  <p class="subtitle">퍼포먼스 광고 손익분기 · 최종 손익률 계산</p>
+
+  <div id="capture-area">
+  <div class="card">
+    <div class="card-title">제품 정보</div>
+    <div class="field">
+      <label>제품명</label>
+      <div class="input-wrap no-unit"><input type="text" id="product-name" value="향수 A" placeholder="제품명을 입력하세요"></div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>판매가(배송비포함)</label>
+        <div class="input-wrap"><input type="number" id="price" value="35000" step="1000"><span class="input-unit">원</span></div>
+      </div>
+      <div class="field">
+        <label>제품 원가(부가세 포함)</label>
+        <div class="input-wrap"><input type="number" id="cogs" value="3000" step="500"><span class="input-unit">원</span></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>결제 수수료</label>
+        <div class="input-wrap"><input type="number" id="pg_fee" value="3.5" step="0.1"><span class="input-unit">%</span></div>
+      </div>
+      <div class="field">
+        <label>택배비 (건당)</label>
+        <div class="input-wrap"><input type="number" id="ship" value="3300" step="100"><span class="input-unit">원</span></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>출고 상자 비용</label>
+        <div class="input-wrap"><input type="number" id="box_cost" value="150" step="10"><span class="input-unit">원</span></div>
+      </div>
+      <div class="field">
+        <label>포장비</label>
+        <div class="input-wrap"><input type="number" id="pack_cost" value="100" step="10"><span class="input-unit">원</span></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>포장부자재</label>
+        <div class="input-wrap"><input type="number" id="pack_material" value="100" step="10"><span class="input-unit">원</span></div>
+      </div>
+      <div class="field">
+      </div>
+    </div>
+    <div class="divider" style="margin: 12px 0;"></div>
+    <div class="field">
+      <label>출고원가 (상자/포장재 등) - 자동계산</label>
+      <div style="background: #f7f7f7; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 12px; font-size: 16px; font-weight: 500; color: #1a1a1a;">
+        <span id="total-fulfillment-cost">0원</span>
+        <div style="font-size: 11px; color: #888; margin-top: 2px;">제품원가+수수료+택배+상자+포장비 합계</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="card-title">광고 설정</div>
+    <div class="field-row">
+      <div class="field">
+        <label>부가세</label>
+        <div class="toggle-row">
+          <button class="toggle-btn active" id="vat-yes" onclick="setVat(true)">불공제(매출에서 차감)</button>
+          <button class="toggle-btn" id="vat-no" onclick="setVat(false)">미차감(수출 등)</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>해외 광고 수수료 (메타 등)</label>
+        <div class="input-wrap"><input type="number" id="ad_fee" value="3" step="0.5"><span class="input-unit">%</span></div>
+      </div>
+    </div>
+  </div>
+
+    <div class="product-header">
+      <div class="product-name" id="display-product">향수 A</div>
+      <div class="calc-time" id="calc-time">계산일: 2024-04-14</div>
+    </div>
+
+    <div class="section-label">원가 구조</div>
+    <div class="g3">
+      <div class="metric">
+        <div class="metric-label">제품 원가율</div>
+        <div class="metric-value" id="r-cogs-rate">-</div>
+        <div class="metric-sub">원가 / 판매가</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">총 원가율</div>
+        <div class="metric-value" id="r-total-rate">-</div>
+        <div class="metric-sub">전체 비용 합산</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">실질 마진율</div>
+        <div class="metric-value" id="r-margin-rate">-</div>
+        <div class="metric-sub">부가세 차감 후</div>
+      </div>
+    </div>
+
+    <div class="g4" style="margin-top: 10px;">
+      <div class="metric">
+        <div class="metric-label">수수료율</div>
+        <div class="metric-value" id="r-fee-rate">-</div>
+        <div class="metric-sub">결제 수수료</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">택배비율</div>
+        <div class="metric-value" id="r-ship-rate">-</div>
+        <div class="metric-sub">배송비</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">출고원가율</div>
+        <div class="metric-value" id="r-fulfil-rate">-</div>
+        <div class="metric-sub">상자+포장+부자재</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">총 부대비용율</div>
+        <div class="metric-value" id="r-extra-total-rate">-</div>
+        <div class="metric-sub">수수료+배송+포장</div>
+      </div>
+    </div>
+
+    <div class="section-label">손익분기</div>
+    <div class="g2">
+      <div class="metric">
+        <div class="metric-label">엔딩 ROAS (손익분기)</div>
+        <div class="metric-value big" id="r-ending-roas">-</div>
+        <div class="metric-sub">이 이상이어야 흑자</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">건당 실질 이익</div>
+        <div class="metric-value big" id="r-profit">-</div>
+        <div class="metric-sub">광고비 제외, 1건 판매 시</div>
+      </div>
+    </div>
+
+    <div class="section-label">ROAS 시뮬레이션</div>
+    <div class="g3">
+      <div class="metric">
+        <div class="metric-label">현재 ROAS</div>
+        <div class="metric-value" id="display-roas">1.10x</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">최종 손익</div>
+        <div class="metric-value" id="display-profit">-</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">최종 손익률</div>
+        <div class="metric-value" id="display-profit-rate">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">예상 현금 흐름</div>
+
+  <div class="card">
+    <div class="sim-row">
+      <div class="sim-label">현재 ROAS</div>
+      <div class="sim-track"><input type="range" id="sim-roas" min="0.5" max="6" step="0.05" value="1.1" oninput="updateSim()"></div>
+      <div class="sim-val" id="sim-roas-val">1.10x</div>
+    </div>
+    <div class="sim-row">
+      <div class="sim-label">일 광고비</div>
+      <div class="sim-track"><input type="range" id="sim-budget" min="50000" max="10000000" step="50000" value="500000" oninput="updateSim()"></div>
+      <div class="sim-val" id="sim-budget-val">500만</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label" style="margin: 12px 0 8px; font-size: 10px;">일 현금흐름</div>
+    <div class="g5" style="grid-template-columns: repeat(5, 1fr);">
+      <div class="metric">
+        <div class="metric-label">실지출</div>
+        <div class="metric-value" id="sim-real-ad">-</div>
+        <div class="metric-sub">수수료 포함</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">실질 매출</div>
+        <div class="metric-value" id="sim-revenue">-</div>
+        <div class="metric-sub">부가세 후</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">예상 부가세</div>
+        <div class="metric-value" id="sim-vat">-</div>
+        <div class="metric-sub">차감된 부가세</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">매출총이익</div>
+        <div class="metric-value" id="sim-gross-before">-</div>
+        <div class="metric-sub">부가세 전</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">매출총이익</div>
+        <div class="metric-value" id="sim-gross-after">-</div>
+        <div class="metric-sub">부가세 후</div>
+      </div>
+    </div>
+    
+    <div class="section-label" style="margin: 12px 0 8px; font-size: 10px;">월 현금흐름</div>
+    <div class="g5" style="grid-template-columns: repeat(5, 1fr);">
+      <div class="metric">
+        <div class="metric-label">월 실지출</div>
+        <div class="metric-value" id="monthly-real-ad">-</div>
+        <div class="metric-sub">수수료 포함</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">월 실질 매출</div>
+        <div class="metric-value" id="monthly-revenue">-</div>
+        <div class="metric-sub">부가세 후</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">월 예상 부가세</div>
+        <div class="metric-value" id="monthly-vat">-</div>
+        <div class="metric-sub">차감된 부가세</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">월 매출총이익</div>
+        <div class="metric-value" id="monthly-gross-before">-</div>
+        <div class="metric-sub">부가세 전</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">월 매출총이익</div>
+        <div class="metric-value" id="monthly-gross-after">-</div>
+        <div class="metric-sub">부가세 후</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label" style="margin: 12px 0 8px; font-size: 10px;">일 현황분석</div>
+    <div class="g5" style="grid-template-columns: repeat(5, 1fr);">
+      <div class="metric">
+        <div class="metric-label">제품원가</div>
+        <div class="metric-value" id="status-cogs">-</div>
+        <div class="metric-sub">부가세 포함</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">광고비</div>
+        <div class="metric-value" id="status-ad">-</div>
+        <div class="metric-sub">수수료 포함</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">변동비</div>
+        <div class="metric-value" id="status-variable">-</div>
+        <div class="metric-sub">택배+수수료+포장</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">회수현금</div>
+        <div class="metric-value" id="status-cash">-</div>
+        <div class="metric-sub">매출-광고비-변동비</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">공헌이익</div>
+        <div class="metric-value" id="status-contribution">-</div>
+        <div class="metric-sub">매출-제품원가-광고비-변동비</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label" style="margin: 12px 0 8px; font-size: 10px;">월 현황분석</div>
+    <div class="g5" style="grid-template-columns: repeat(5, 1fr);">
+      <div class="metric">
+        <div class="metric-label">월 제품원가</div>
+        <div class="metric-value" id="monthly-cogs">-</div>
+        <div class="metric-sub">부가세 포함</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">월 광고비</div>
+        <div class="metric-value" id="monthly-ad">-</div>
+        <div class="metric-sub">수수료 포함</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">월 변동비</div>
+        <div class="metric-value" id="monthly-variable">-</div>
+        <div class="metric-sub">택배+수수료+포장</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">월 회수현금</div>
+        <div class="metric-value" id="monthly-cash">-</div>
+        <div class="metric-sub">매출-광고비-변동비</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">월 공헌이익</div>
+        <div class="metric-value" id="monthly-contribution">-</div>
+        <div class="metric-sub">매출-제품원가-광고비-변동비</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label" style="margin: 12px 0 8px; font-size: 10px;">월 공헌이익 현황</div>
+    <div class="g2" style="grid-template-columns: repeat(2, 1fr);">
+      <div class="metric">
+        <div class="metric-label">월 공헌이익</div>
+        <div class="metric-value big" id="monthly-contribution-main">-</div>
+        <div class="metric-sub" id="monthly-contribution-ratio">매출 대비 --%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">공헌이익률</div>
+        <div class="metric-value big" id="contribution-rate">-</div>
+        <div class="metric-sub">실질 매출 기준</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    
+    <div class="section-label" style="margin: 12px 0 8px; font-size: 10px;">요약 주요 지표</div>
+    <div class="g4">
+      <div class="metric">
+        <div class="metric-label">최종 손익</div>
+        <div class="metric-value big" id="sim-profit">-</div>
+        <div class="metric-sub">부가세 10% 고려 후</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">월 예상 손익</div>
+        <div class="metric-value" id="sim-monthly-profit">-</div>
+        <div class="metric-sub">일손익 × 30일</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">최종 손익률</div>
+        <div class="metric-value big" id="sim-profit-rate">-</div>
+        <div class="metric-sub">손익 / 실질 매출</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">손익분기까지</div>
+        <div class="metric-value" id="sim-gap">-</div>
+        <div class="metric-sub">현재 ROAS 기준</div>
+      </div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div style="font-size:11px;color:#aaa;margin-bottom:4px;">손익률 게이지</div>
+      <div class="profit-bar-wrap"><div class="profit-bar" id="profit-bar" style="width:0%;background:#2e7d32;"></div></div>
+    </div>
+
+    <div id="sim-verdict" class="verdict warning">
+      <div class="verdict-title" id="sim-verdict-title">계산 중...</div>
+      <div class="verdict-body" id="sim-verdict-body"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">다운로드</div>
+    <div class="download-row">
+      <button class="download-btn" onclick="downloadImage()">📷 이미지</button>
+      <button class="download-btn" onclick="downloadFullImage()">📸 전체 이미지</button>
+      <button class="download-btn" onclick="downloadExcel()">📊 엑셀</button>
+      <button class="download-btn" onclick="saveCurrentData()">💾 저장</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" onclick="toggleSavedData()" style="cursor: pointer; user-select: none;">
+      💾 저장된 데이터 <span id="toggle-icon">▼</span>
+    </div>
+    <div id="saved-data-list" style="display: none;">
+      <div id="no-saved-data" style="padding: 15px; color: #888; text-align: center; font-size: 12px;">저장된 데이터가 없습니다.</div>
+    </div>
+  </div>
+
+
+</div>
+
+<script>
+let vatOn = true;
+
+function safeSetText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function safeSetClass(id, className) {
+  const el = document.getElementById(id);
+  if (el) el.className = className;
+}
+
+function setVat(v) {
+  vatOn = v;
+  document.getElementById('vat-yes').className = 'toggle-btn' + (v ? ' active' : '');
+  document.getElementById('vat-no').className = 'toggle-btn' + (!v ? ' active' : '');
+  calc();
+}
+
+function fmt(n) { return Math.round(n).toLocaleString('ko-KR') + '원'; }
+function fmtPct(n) { return (Math.round(n * 10) / 10).toFixed(1) + '%'; }
+function fmtRoas(n) { return (Math.round(n * 100) / 100).toFixed(2) + 'x'; }
+function fmtShort(n) {
+  const s = n < 0 ? '-' : (n > 0 ? '+' : '');
+  const abs = Math.abs(n);
+  if (abs >= 100000000) return s + (abs / 100000000).toFixed(1) + '억';
+  if (abs >= 10000000) return s + (abs / 10000000).toFixed(1) + '천만';
+  if (abs >= 1000000) return s + (abs / 10000).toFixed(0) + '만';
+  if (abs >= 10000) return s + (abs / 10000).toFixed(1) + '만';
+  return s + Math.round(abs).toLocaleString() + '원';
+}
+function fmtBudget(n) {
+  if (n >= 10000000) return (n / 10000000).toFixed(1) + '천만';
+  return (n / 10000).toFixed(0) + '만';
+}
+
+function updateProductDisplay() {
+  const name = document.getElementById('product-name').value || '제품명';
+  document.getElementById('display-product').textContent = name;
+  document.getElementById('calc-time').textContent = '계산일: ' + new Date().toLocaleDateString('ko-KR');
+}
+
+function calc() {
+  const price = parseFloat(document.getElementById('price').value) || 0;
+  const cogs = parseFloat(document.getElementById('cogs').value) || 0;
+  const pgFee = parseFloat(document.getElementById('pg_fee').value) / 100 || 0;
+  const ship = parseFloat(document.getElementById('ship').value) || 0;
+  const boxCost = parseFloat(document.getElementById('box_cost').value) || 0;
+  const packCost = parseFloat(document.getElementById('pack_cost').value) || 0;
+  const packMaterial = parseFloat(document.getElementById('pack_material').value) || 0;
+  const adFee = parseFloat(document.getElementById('ad_fee').value) / 100 || 0;
+
+  const vatDiv = vatOn ? 1.1 : 1;
+  const netPrice = price / vatDiv;
+  const pgAmt = price * pgFee;
+  const fulfillmentCost = boxCost + packCost + packMaterial;
+  const extraCost = pgAmt + ship + fulfillmentCost;
+  const totalCost = cogs + extraCost;
+
+  const cogsRate = price > 0 ? (cogs / price * 100) : 0;
+  const feeRate = price > 0 ? (pgAmt / price * 100) : 0;
+  const shipRate = price > 0 ? (ship / price * 100) : 0;
+  const fulfillRate = price > 0 ? (fulfillmentCost / price * 100) : 0;
+  const extraTotalRate = price > 0 ? ((pgAmt + ship + fulfillmentCost) / price * 100) : 0;
+  // ===== 최종 단순화: 엔딩 ROAS = 1/실질마진율 =====
+  const totalUnitCost = cogs + ship + fulfillmentCost + (price * pgFee);
+  const totalCostRate = netPrice > 0 ? (totalUnitCost / netPrice * 100) : 0;
+  const marginRate = netPrice > 0 ? ((netPrice - totalUnitCost) / netPrice * 100) : 0;
+  
+  // 엔딩 ROAS = 1 / 실질마진율 (부가세차감후)
+  const endingRoas = marginRate > 0 ? (100 / marginRate) : 99;
+  
+  // 기존 변수들 (호환성 유지)
+  const fixedUnitCost = cogs + ship + fulfillmentCost;
+  const fixedRate = price > 0 ? (fixedUnitCost / price * 100) : 0;
+  const totalRate = price > 0 ? (totalUnitCost / price * 100) : 0;
+  const profitPerUnit = netPrice - totalUnitCost;
+
+  safeSetText('r-cogs-rate', fmtPct(cogsRate));
+  safeSetText('r-total-rate', fmtPct(totalRate));
+  
+  // 새로운 원가율 항목들
+  safeSetText('r-fee-rate', fmtPct(feeRate));
+  safeSetText('r-ship-rate', fmtPct(shipRate));
+  safeSetText('r-fulfil-rate', fmtPct(fulfillRate));
+  safeSetText('r-extra-total-rate', fmtPct(extraTotalRate));
+
+  // 총 출고원가 자동계산 (제품원가+수수료+택배+상자+포장비)
+  const totalFulfillmentCostAmount = cogs + pgAmt + ship + boxCost + packCost + packMaterial;
+  safeSetText('total-fulfillment-cost', fmt(totalFulfillmentCostAmount));
+
+
+  const mrEl = document.getElementById('r-margin-rate');
+  if (mrEl) {
+    mrEl.textContent = fmtPct(marginRate);
+    mrEl.className = 'metric-value' + (marginRate > 40 ? ' success' : marginRate > 20 ? ' warning' : ' danger');
+  }
+
+  const roasEl = document.getElementById('r-ending-roas');
+  if (roasEl) {
+    roasEl.textContent = fmtRoas(endingRoas);
+    roasEl.className = 'metric-value big' + (endingRoas < 1.5 ? ' success' : endingRoas < 2.5 ? ' warning' : ' danger');
+  }
+
+  const pEl = document.getElementById('r-profit');
+  if (pEl) {
+    pEl.textContent = fmt(profitPerUnit);
+    pEl.className = 'metric-value big' + (profitPerUnit > 0 ? ' success' : ' danger');
+  }
+
+  window._calc = { price, cogs, pgFee, ship, boxCost, packCost, packMaterial, fulfillmentCost, adFee, vatDiv, netPrice, totalUnitCost, totalRate, marginRate, endingRoas, profitPerUnit, feeRate, shipRate, fulfillRate };
+  updateProductDisplay();
+  updateSim();
+}
+
+function updateSim() {
+  const c = window._calc;
+  if (!c) return;
+
+  const roasSlider = parseFloat(document.getElementById('sim-roas').value);
+  const budget = parseFloat(document.getElementById('sim-budget').value);
+
+  safeSetText('sim-roas-val', fmtRoas(roasSlider));
+  safeSetText('sim-budget-val', fmtBudget(budget));
+  safeSetText('display-roas', fmtRoas(roasSlider));
+
+  const realAd = budget * (1 + c.adFee);
+  const grossRevenue = budget * roasSlider;
+  const netRevenue = grossRevenue / c.vatDiv;
+  
+  // 수량 계산
+  const totalUnits = netRevenue > 0 ? Math.round(netRevenue / (c.price / c.vatDiv)) : 0;
+  
+  // ===== 단순화된 손익 계산 =====
+  // 공헌이익: 엔딩ROAS와 현재ROAS 차이 기반으로 계산
+  // 엔딩ROAS = 현재ROAS일 때 공헌이익 = 0이 되도록 설계
+  const roasDiff = roasSlider - c.endingRoas;
+  const contributionMargin = roasDiff * budget / c.vatDiv * (c.marginRate / 100);
+  
+  // 최종손익 = 공헌이익 - 부가세 (부가세 10% 고려)
+  const vatAmount = vatOn ? (grossRevenue - netRevenue) : 0;
+  const netProfit = contributionMargin - vatAmount;
+  
+  // 매출총이익 계산 (기존 방식)
+  const totalOutboundCost = totalUnits * c.totalUnitCost;
+  const grossProfitBeforeVat = grossRevenue - totalOutboundCost;
+  const grossProfitAfterVat = netRevenue - totalOutboundCost;
+  
+  // 기존 계산 (호환성 유지)
+  const totalCogs = totalUnits * c.cogs;
+  const totalShipping = totalUnits * c.ship;
+  const totalPackaging = totalUnits * (c.boxCost + c.packCost + c.packMaterial);
+  const totalFees = grossRevenue * c.pgFee;
+  const totalVariableCosts = totalShipping + totalPackaging + totalFees;
+  
+  // 기존 매출총이익 (호환성 - 광고비 제외)
+  const grossProfit = grossProfitAfterVat;
+  
+  const profitRate = netRevenue > 0 ? (netProfit / netRevenue * 100) : 0;
+  const diff = roasSlider - c.endingRoas;
+
+  safeSetText('sim-real-ad', fmtShort(realAd).replace('+', ''));
+  
+  safeSetText('sim-revenue', fmtShort(netRevenue).replace('+', ''));
+  
+  // 월 예상 현금 흐름 표시 (매출 대비 비율 포함)
+  const totalMonthlyRevenue = netRevenue * 30;
+  
+  const monthlyRealAdEl = document.getElementById('monthly-real-ad');
+  const monthlyRealAdSubEl = monthlyRealAdEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyRealAdEl) {
+    const monthlyRealAd = realAd * 30;
+    monthlyRealAdEl.textContent = fmtShort(monthlyRealAd).replace('+', '');
+    monthlyRealAdEl.className = 'metric-value';
+    if (monthlyRealAdSubEl && totalMonthlyRevenue > 0) {
+      const ratio = (monthlyRealAd / totalMonthlyRevenue * 100).toFixed(1);
+      monthlyRealAdSubEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+  
+  const monthlyRevenueEl = document.getElementById('monthly-revenue');
+  const monthlyRevenueSubEl = monthlyRevenueEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyRevenueEl) {
+    monthlyRevenueEl.textContent = fmtShort(totalMonthlyRevenue).replace('+', '');
+    monthlyRevenueEl.className = 'metric-value';
+    if (monthlyRevenueSubEl) {
+      monthlyRevenueSubEl.textContent = '매출 대비 100%';
+    }
+  }
+  
+  const monthlyVatEl = document.getElementById('monthly-vat');
+  const monthlyVatSubEl = monthlyVatEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyVatEl) {
+    const monthlyVat = vatAmount * 30;
+    monthlyVatEl.textContent = vatOn ? fmtShort(monthlyVat).replace('+', '') : '0원';
+    monthlyVatEl.className = 'metric-value' + (vatOn ? ' warning' : '');
+    if (monthlyVatSubEl && totalMonthlyRevenue > 0) {
+      const ratio = vatOn ? (monthlyVat / totalMonthlyRevenue * 100).toFixed(1) : '0.0';
+      monthlyVatSubEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+  
+  const monthlyGrossBeforeEl = document.getElementById('monthly-gross-before');
+  const monthlyGrossBeforeSubEl = monthlyGrossBeforeEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyGrossBeforeEl) {
+    const monthlyGrossBefore = grossProfitBeforeVat * 30;
+    monthlyGrossBeforeEl.textContent = fmtShort(monthlyGrossBefore).replace('+', '');
+    monthlyGrossBeforeEl.className = 'metric-value' + (grossProfitBeforeVat > 0 ? ' success' : ' danger');
+    if (monthlyGrossBeforeSubEl && totalMonthlyRevenue > 0) {
+      const ratio = (monthlyGrossBefore / totalMonthlyRevenue * 100).toFixed(1);
+      monthlyGrossBeforeSubEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+  
+  const monthlyGrossAfterEl = document.getElementById('monthly-gross-after');
+  const monthlyGrossAfterSubEl = monthlyGrossAfterEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyGrossAfterEl) {
+    const monthlyGrossAfter = grossProfitAfterVat * 30;
+    monthlyGrossAfterEl.textContent = fmtShort(monthlyGrossAfter).replace('+', '');
+    monthlyGrossAfterEl.className = 'metric-value' + (grossProfitAfterVat > 0 ? ' success' : ' danger');
+    if (monthlyGrossAfterSubEl && totalMonthlyRevenue > 0) {
+      const ratio = (monthlyGrossAfter / totalMonthlyRevenue * 100).toFixed(1);
+      monthlyGrossAfterSubEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+  
+  // VAT amount calculation (이미 위에서 계산됨)
+  const vatEl = document.getElementById('sim-vat');
+  if (vatEl) {
+    vatEl.textContent = vatOn ? fmtShort(vatAmount).replace('+', '') : '0원';
+    vatEl.className = 'metric-value' + (vatOn ? ' warning' : '');
+  }
+
+  // 매출총이익 부가세 전/후 표시
+  const gpBeforeEl = document.getElementById('sim-gross-before');
+  if (gpBeforeEl) {
+    gpBeforeEl.textContent = fmtShort(grossProfitBeforeVat).replace('+', '');
+    gpBeforeEl.className = 'metric-value' + (grossProfitBeforeVat > 0 ? ' success' : ' danger');
+  }
+  
+  const gpAfterEl = document.getElementById('sim-gross-after');
+  if (gpAfterEl) {
+    gpAfterEl.textContent = fmtShort(grossProfitAfterVat).replace('+', '');
+    gpAfterEl.className = 'metric-value' + (grossProfitAfterVat > 0 ? ' success' : ' danger');
+  }
+
+  const profEl = document.getElementById('sim-profit');
+  if (profEl) {
+    profEl.textContent = fmtShort(netProfit);
+    profEl.className = 'metric-value big' + (netProfit > 0 ? ' success' : netProfit > -500000 ? ' warning' : ' danger');
+  }
+
+  const prEl = document.getElementById('sim-profit-rate');
+  if (prEl) {
+    prEl.textContent = (netProfit >= 0 ? '+' : '') + fmtPct(profitRate);
+    prEl.className = 'metric-value big' + (profitRate > 0 ? ' success' : profitRate > -10 ? ' warning' : ' danger');
+  }
+
+
+  // 현황 분석 계산 (단순화된 계산 사용)
+  const statusCogs = totalCogs;        // 제품원가만
+  const statusAdCost = realAd;         // 광고비 (수수료 포함)
+  const statusVariableCost = totalVariableCosts;  // 변동비 (택배+결제수수료+포장)
+  const statusCashRecovered = netRevenue - statusAdCost - statusVariableCost;  // 회수현금
+
+  // 현황 분석 표시
+  safeSetText('status-cogs', fmtShort(statusCogs).replace('+', ''));
+  safeSetText('status-ad', fmtShort(statusAdCost).replace('+', ''));
+  safeSetText('status-variable', fmtShort(statusVariableCost).replace('+', ''));
+  
+  const cashEl = document.getElementById('status-cash');
+  if (cashEl) {
+    cashEl.textContent = fmtShort(statusCashRecovered);
+    cashEl.className = 'metric-value' + (statusCashRecovered > 0 ? ' success' : ' danger');
+  }
+  
+  // 공헌이익 표시 (새로운 계산 방식)
+  const contribEl = document.getElementById('status-contribution');
+  if (contribEl) {
+    contribEl.textContent = fmtShort(contributionMargin);
+    contribEl.className = 'metric-value' + (contributionMargin > 0 ? ' success' : ' danger');
+  }
+  
+  // 월 예상 공헌이익 표시
+  const monthlyContribEl = document.getElementById('status-contribution-monthly');
+  if (monthlyContribEl) {
+    const monthlyContribution = contributionMargin * 30;
+    monthlyContribEl.textContent = fmtShort(monthlyContribution);
+    monthlyContribEl.className = 'metric-value' + (monthlyContribution > 0 ? ' success' : ' danger');
+  }
+
+  // 월 기준 현황분석 표시 (매출 대비 비율 포함)
+  const monthlyRevenue = netRevenue * 30;
+  
+  const monthlyCogsEl = document.getElementById('monthly-cogs');
+  const monthlyCogsSubEl = monthlyCogsEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyCogsEl) {
+    const monthlyCogs = statusCogs * 30;
+    monthlyCogsEl.textContent = fmtShort(monthlyCogs);
+    monthlyCogsEl.className = 'metric-value';
+    if (monthlyCogsSubEl && monthlyRevenue > 0) {
+      const ratio = (monthlyCogs / monthlyRevenue * 100).toFixed(1);
+      monthlyCogsSubEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+  
+  const monthlyAdEl = document.getElementById('monthly-ad');
+  const monthlyAdSubEl = monthlyAdEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyAdEl) {
+    const monthlyAd = statusAdCost * 30;
+    monthlyAdEl.textContent = fmtShort(monthlyAd);
+    monthlyAdEl.className = 'metric-value';
+    if (monthlyAdSubEl && monthlyRevenue > 0) {
+      const ratio = (monthlyAd / monthlyRevenue * 100).toFixed(1);
+      monthlyAdSubEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+  
+  const monthlyVariableEl = document.getElementById('monthly-variable');
+  const monthlyVariableSubEl = monthlyVariableEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyVariableEl) {
+    const monthlyVariable = statusVariableCost * 30;
+    monthlyVariableEl.textContent = fmtShort(monthlyVariable);
+    monthlyVariableEl.className = 'metric-value';
+    if (monthlyVariableSubEl && monthlyRevenue > 0) {
+      const ratio = (monthlyVariable / monthlyRevenue * 100).toFixed(1);
+      monthlyVariableSubEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+  
+  const monthlyCashEl = document.getElementById('monthly-cash');
+  const monthlyCashSubEl = monthlyCashEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyCashEl) {
+    const monthlyCash = statusCashRecovered * 30;
+    monthlyCashEl.textContent = fmtShort(monthlyCash);
+    monthlyCashEl.className = 'metric-value' + (monthlyCash > 0 ? ' success' : ' danger');
+    if (monthlyCashSubEl && monthlyRevenue > 0) {
+      const ratio = (monthlyCash / monthlyRevenue * 100).toFixed(1);
+      monthlyCashSubEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+  
+  const monthlyContribAnalysisEl = document.getElementById('monthly-contribution');
+  const monthlyContribSubEl = monthlyContribAnalysisEl?.parentElement?.querySelector('.metric-sub');
+  if (monthlyContribAnalysisEl) {
+    const monthlyContribAnalysis = contributionMargin * 30;
+    monthlyContribAnalysisEl.textContent = fmtShort(monthlyContribAnalysis);
+    monthlyContribAnalysisEl.className = 'metric-value' + (monthlyContribAnalysis > 0 ? ' success' : ' danger');
+    if (monthlyContribSubEl && monthlyRevenue > 0) {
+      const ratio = (monthlyContribAnalysis / monthlyRevenue * 100).toFixed(1);
+      monthlyContribSubEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+
+  // 월 공헌이익 현황 표시
+  const monthlyContribMainEl = document.getElementById('monthly-contribution-main');
+  const monthlyContribRatioEl = document.getElementById('monthly-contribution-ratio');
+  if (monthlyContribMainEl) {
+    const monthlyContrib = contributionMargin * 30;
+    monthlyContribMainEl.textContent = fmtShort(monthlyContrib);
+    monthlyContribMainEl.className = 'metric-value big' + (monthlyContrib > 0 ? ' success' : ' danger');
+    if (monthlyContribRatioEl && monthlyRevenue > 0) {
+      const ratio = (monthlyContrib / monthlyRevenue * 100).toFixed(1);
+      monthlyContribRatioEl.textContent = `매출 대비 ${ratio}%`;
+    }
+  }
+  
+  const contributionRateEl = document.getElementById('contribution-rate');
+  if (contributionRateEl) {
+    const contribRate = netRevenue > 0 ? (contributionMargin / netRevenue * 100) : 0;
+    contributionRateEl.textContent = fmtPct(contribRate);
+    contributionRateEl.className = 'metric-value big' + (contribRate > 0 ? ' success' : ' danger');
+  }
+
+
+
+  // Display 업데이트
+  safeSetText('display-profit', fmtShort(netProfit));
+  safeSetText('display-profit-rate', (netProfit >= 0 ? '+' : '') + fmtPct(profitRate));
+
+  // 월 예상 손익 계산 및 표시
+  const monthlyNetProfit = netProfit * 30;
+  const monthlyProfitEl = document.getElementById('sim-monthly-profit');
+  if (monthlyProfitEl) {
+    monthlyProfitEl.textContent = fmtShort(monthlyNetProfit);
+    monthlyProfitEl.className = 'metric-value' + (monthlyNetProfit > 0 ? ' success' : ' danger');
+  }
+
+  const gapEl = document.getElementById('sim-gap');
+  if (gapEl) {
+    if (diff >= 0) {
+      gapEl.textContent = '+' + fmtRoas(diff) + ' 여유';
+      gapEl.className = 'metric-value success';
+    } else {
+      gapEl.textContent = fmtRoas(Math.abs(diff)) + ' 부족';
+      gapEl.className = 'metric-value' + (Math.abs(diff) < 0.3 ? ' warning' : ' danger');
+    }
+  }
+
+  const barPct = Math.min(Math.max(profitRate + 50, 0), 100);
+  const bar = document.getElementById('profit-bar');
+  if (bar) {
+    bar.style.width = barPct + '%';
+    bar.style.background = profitRate > 10 ? '#2e7d32' : profitRate > 0 ? '#e65100' : '#c62828';
+  }
+
+  const vEl = document.getElementById('sim-verdict');
+  const vtEl = document.getElementById('sim-verdict-title');
+  const vbEl = document.getElementById('sim-verdict-body');
+
+  if (diff >= 0.5) {
+    vEl.className = 'verdict success';
+    vtEl.textContent = '흑자 — 스케일업 가능';
+    vbEl.textContent = `손익분기 ${fmtRoas(c.endingRoas)} 대비 +${fmtRoas(diff)} 여유. 최종 손익률 ${fmtPct(profitRate)}. 예산 확대 타이밍입니다.`;
+  } else if (diff >= 0) {
+    vEl.className = 'verdict warning';
+    vtEl.textContent = '간신히 흑자 — 소재 최적화 필요';
+    vbEl.textContent = `손익분기는 넘겼지만 여유가 ${fmtRoas(diff)}뿐. 손익률 ${fmtPct(profitRate)}. 소재 개선으로 ROAS를 더 올려야 안전합니다.`;
+  } else if (Math.abs(diff) < 0.3) {
+    vEl.className = 'verdict warning';
+    vtEl.textContent = '손익분기 근접 — 소재 개선으로 돌파 가능';
+    vbEl.textContent = `손익분기까지 ${fmtRoas(Math.abs(diff))} 부족. 손익률 ${fmtPct(profitRate)}. 소재 베리에이션으로 충분히 넘길 수 있는 구간.`;
+  } else {
+    vEl.className = 'verdict danger';
+    vtEl.textContent = '적자 — 발주 전 재검토 필요';
+    vbEl.textContent = `손익분기까지 ${fmtRoas(Math.abs(diff))} 부족. 손익률 ${fmtPct(profitRate)}. 광고비 ${fmtBudget(budget)} 기준 ${fmtShort(Math.abs(netProfit))} 손실 예상.`;
+  }
+}
+
+function downloadImage() {
+  const captureElement = document.getElementById('capture-area');
+  
+  html2canvas(captureElement, {
+    backgroundColor: '#ffffff',
+    scale: 1.5,
+    useCORS: true,
+    allowTaint: true,
+    height: captureElement.scrollHeight,
+    width: captureElement.scrollWidth,
+    scrollX: 0,
+    scrollY: 0,
+    windowWidth: window.innerWidth,
+    windowHeight: window.innerHeight
+  }).then(canvas => {
+    const link = document.createElement('a');
+    link.download = `${document.getElementById('product-name').value || 'product'}_roas계산_${new Date().toISOString().slice(0,10)}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+  }).catch(error => {
+    console.error('이미지 생성 중 오류:', error);
+    alert('이미지 생성에 실패했습니다. 전체 이미지 버튼을 사용해보세요.');
+  });
+}
+
+function downloadFullImage() {
+  // 임시로 다운로드 섹션 숨기기
+  const downloadCards = document.querySelectorAll('.card');
+  const lastTwoCards = Array.from(downloadCards).slice(-2);
+  lastTwoCards.forEach(card => card.style.display = 'none');
+  
+  html2canvas(document.body, {
+    backgroundColor: '#ffffff',
+    scale: 1,
+    useCORS: true,
+    allowTaint: true,
+    height: document.documentElement.scrollHeight,
+    width: document.documentElement.scrollWidth,
+    scrollX: 0,
+    scrollY: 0
+  }).then(canvas => {
+    // 다운로드 섹션 다시 보이기
+    lastTwoCards.forEach(card => card.style.display = 'block');
+    
+    const link = document.createElement('a');
+    link.download = `${document.getElementById('product-name').value || 'product'}_roas계산_전체_${new Date().toISOString().slice(0,10)}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+  }).catch(error => {
+    // 다운로드 섹션 다시 보이기
+    lastTwoCards.forEach(card => card.style.display = 'block');
+    console.error('전체 이미지 생성 중 오류:', error);
+    alert('전체 이미지 생성에 실패했습니다.');
+  });
+}
+
+function downloadExcel() {
+  const c = window._calc;
+  if (!c) return;
+  
+  const productName = document.getElementById('product-name').value || '제품명';
+  const roasSlider = parseFloat(document.getElementById('sim-roas').value);
+  const budget = parseFloat(document.getElementById('sim-budget').value);
+  const realAd = budget * (1 + c.adFee);
+  const grossRevenue = budget * roasSlider;
+  const netRevenue = grossRevenue / c.vatDiv;
+  const netProfit = netRevenue * (1 - c.totalRate / 100) - realAd;
+  const profitRate = netRevenue > 0 ? (netProfit / netRevenue * 100) : 0;
+
+  const data = [
+    ['제품명', productName],
+    ['계산일', new Date().toLocaleDateString('ko-KR')],
+    [''],
+    ['== 제품 정보 =='],
+    ['판매가(배송비포함)', c.price],
+    ['제품 원가(부가세 포함)', parseInt(document.getElementById('cogs').value)],
+    ['결제 수수료 (%)', parseFloat(document.getElementById('pg_fee').value)],
+    ['택배비', parseInt(document.getElementById('ship').value)],
+    ['출고 상자 비용', parseInt(document.getElementById('box_cost').value)],
+    ['포장비', parseInt(document.getElementById('pack_cost').value)],
+    ['포장부자재', parseInt(document.getElementById('pack_material').value)],
+    ['결제 수수료 금액', { f: '=B5*B7/100' }],
+    ['총 출고원가 합계', { f: '=B6+B8+B9+B10+B11+B12' }],
+    [''],
+    ['== 원가 구조 =='],
+    ['제품 원가율 (%)', { f: '=B6/B5*100' }],
+    ['총 원가율 (%)', { f: '=B13/B5*100' }],
+    ['실질 마진율 (%)', { f: '=(B5/1.1-B13)/(B5/1.1)*100' }],
+    [''],
+    ['== 손익분기 =='],
+    ['엔딩 ROAS', c.endingRoas.toFixed(2)],
+    ['건당 실질 이익', { f: '=B5/1.1-B13' }],
+    [''],
+    ['== ROAS 시뮬레이션 =='],
+    ['현재 ROAS', roasSlider.toFixed(2)],
+    ['일 광고비', budget],
+    ['실지출 (수수료포함)', { f: '=B26*1.03' }],
+    ['실질 매출 (부가세 후)', { f: '=B26*B25/1.1' }],
+    ['예상 부가세', { f: '=B26*B25-B28' }],
+    ['최종 손익', { f: '=B28*(1-B17/100)-B27' }],
+    ['최종 손익률 (%)', { f: '=B30/B28*100' }],
+    [''],
+    ['== 월 예상 (30일 기준) =='],
+    ['월 광고비', { f: '=B26*30' }],
+    ['월 실지출', { f: '=B27*30' }],
+    ['월 매출', { f: '=B28*30' }],
+    ['월 손익', { f: '=B30*30' }]
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // 열 너비 설정
+  ws['!cols'] = [
+    { width: 25 },
+    { width: 15 }
+  ];
+  
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ROAS 계산');
+  XLSX.writeFile(wb, `${productName}_ROAS계산_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function saveCurrentData() {
+  try {
+    const saveData = {
+      id: Date.now(), // 고유 ID
+      timestamp: new Date().toISOString(),
+      product_name: document.getElementById('product-name').value || '제품명',
+      price: parseFloat(document.getElementById('price').value),
+      cogs: parseFloat(document.getElementById('cogs').value),
+      pg_fee: parseFloat(document.getElementById('pg_fee').value),
+      ship: parseFloat(document.getElementById('ship').value),
+      box_cost: parseFloat(document.getElementById('box_cost').value),
+      pack_cost: parseFloat(document.getElementById('pack_cost').value),
+      pack_material: parseFloat(document.getElementById('pack_material').value),
+      ad_fee: parseFloat(document.getElementById('ad_fee').value),
+      vat_on: vatOn,
+      sim_roas: parseFloat(document.getElementById('sim-roas').value),
+      sim_budget: parseFloat(document.getElementById('sim-budget').value)
+    };
+    
+    // 기존 저장된 데이터들 가져오기
+    let savedDataList = JSON.parse(localStorage.getItem('roas-calculator-data-list') || '[]');
+    
+    // 새 데이터 추가
+    savedDataList.unshift(saveData); // 최신순으로 정렬
+    
+    // 최대 10개까지만 저장
+    if (savedDataList.length > 10) {
+      savedDataList = savedDataList.slice(0, 10);
+    }
+    
+    localStorage.setItem('roas-calculator-data-list', JSON.stringify(savedDataList));
+    localStorage.setItem('roas-calculator-data', JSON.stringify(saveData)); // 마지막 저장 데이터 (호환성 유지)
+    
+    alert('데이터가 저장되었습니다.');
+    updateSavedDataList();
+  } catch (error) {
+    alert('저장 중 오류가 발생했습니다.');
+  }
+}
+
+function loadSavedData(dataId = null) {
+  try {
+    let data;
+    if (dataId) {
+      // 특정 데이터 로드
+      const savedDataList = JSON.parse(localStorage.getItem('roas-calculator-data-list') || '[]');
+      data = savedDataList.find(item => item.id === dataId);
+    } else {
+      // 마지막 저장 데이터 로드 (기존 방식 호환)
+      const saved = localStorage.getItem('roas-calculator-data');
+      if (saved) data = JSON.parse(saved);
+    }
+    
+    if (data) {
+      if (data.product_name) document.getElementById('product-name').value = data.product_name;
+      if (data.price) document.getElementById('price').value = data.price;
+      if (data.cogs) document.getElementById('cogs').value = data.cogs;
+      if (data.pg_fee) document.getElementById('pg_fee').value = data.pg_fee;
+      if (data.ship) document.getElementById('ship').value = data.ship;
+      if (data.box_cost) document.getElementById('box_cost').value = data.box_cost;
+      if (data.pack_cost) document.getElementById('pack_cost').value = data.pack_cost;
+      if (data.pack_material) document.getElementById('pack_material').value = data.pack_material;
+      if (data.ad_fee) document.getElementById('ad_fee').value = data.ad_fee;
+      if (typeof data.vat_on === 'boolean') setVat(data.vat_on);
+      if (data.sim_roas) document.getElementById('sim-roas').value = data.sim_roas;
+      if (data.sim_budget) document.getElementById('sim-budget').value = data.sim_budget;
+      
+      calc();
+      updateSim();
+    }
+  } catch (error) {
+    console.log('저장된 데이터가 없거나 불러오기에 실패했습니다.');
+  }
+}
+
+function deleteSavedData(dataId) {
+  if (!confirm('이 데이터를 삭제하시겠습니까?')) return;
+  
+  try {
+    let savedDataList = JSON.parse(localStorage.getItem('roas-calculator-data-list') || '[]');
+    savedDataList = savedDataList.filter(item => item.id !== dataId);
+    localStorage.setItem('roas-calculator-data-list', JSON.stringify(savedDataList));
+    updateSavedDataList();
+  } catch (error) {
+    alert('삭제 중 오류가 발생했습니다.');
+  }
+}
+
+function toggleSavedData() {
+  const list = document.getElementById('saved-data-list');
+  const icon = document.getElementById('toggle-icon');
+  
+  if (list.style.display === 'none') {
+    list.style.display = 'block';
+    icon.textContent = '▲';
+    updateSavedDataList();
+  } else {
+    list.style.display = 'none';
+    icon.textContent = '▼';
+  }
+}
+
+function updateSavedDataList() {
+  try {
+    const savedDataList = JSON.parse(localStorage.getItem('roas-calculator-data-list') || '[]');
+    const listContainer = document.getElementById('saved-data-list');
+    const noDataMsg = document.getElementById('no-saved-data');
+    
+    if (savedDataList.length === 0) {
+      noDataMsg.style.display = 'block';
+      // 기존 데이터 항목들 제거
+      const existingItems = listContainer.querySelectorAll('.saved-data-item');
+      existingItems.forEach(item => item.remove());
+    } else {
+      noDataMsg.style.display = 'none';
+      
+      // 기존 항목들 제거
+      const existingItems = listContainer.querySelectorAll('.saved-data-item');
+      existingItems.forEach(item => item.remove());
+      
+      // 새 항목들 추가
+      savedDataList.forEach(data => {
+        const item = document.createElement('div');
+        item.className = 'saved-data-item';
+        item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0;';
+        
+        const info = document.createElement('div');
+        info.style.cssText = 'flex: 1; cursor: pointer;';
+        info.innerHTML = `
+          <div style="font-size: 13px; font-weight: 500;">${data.product_name}</div>
+          <div style="font-size: 11px; color: #888;">${new Date(data.timestamp).toLocaleString('ko-KR')}</div>
+        `;
+        info.onclick = () => loadSavedData(data.id);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '삭제';
+        deleteBtn.style.cssText = 'background: #ff4444; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer;';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteSavedData(data.id);
+        };
+        
+        item.appendChild(info);
+        item.appendChild(deleteBtn);
+        listContainer.appendChild(item);
+      });
+    }
+  } catch (error) {
+    console.log('저장된 데이터 목록을 불러오는 데 실패했습니다.');
+  }
+}
+
+document.getElementById('product-name').addEventListener('input', updateProductDisplay);
+document.querySelectorAll('input[type=number]').forEach(el => el.addEventListener('input', calc));
+
+// 페이지 로드 시 저장된 데이터 불러오기
+loadSavedData();
+updateSavedDataList();
+calc();
+</script>
+</body>
+</html>
